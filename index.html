@@ -7,18 +7,26 @@
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f4f4f4;
       text-align: center;
       padding: 30px;
-      background-color: #f4f4f4;
     }
+
     h1 {
       color: #333;
     }
+
     select, button {
       font-size: 16px;
       padding: 8px 12px;
       margin: 10px;
     }
+
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+
     canvas {
       margin-top: 30px;
       max-width: 800px;
@@ -27,16 +35,19 @@
 </head>
 <body>
   <h1>📈 Options Trader Simulator</h1>
-  <label for="strategy">Choose an Option Strategy:</label>
+
+  <label for="strategy">Choose a Strategy:</label>
   <select id="strategy">
     <option value="call">Buy Call</option>
     <option value="put">Buy Put</option>
     <option value="straddle">Straddle</option>
     <option value="collar">Collar</option>
-  </select>
-  <br>
-  <button onclick="simulate()">Simulate Trade</button>
+  </select><br>
 
+  <button onclick="startSimulation()">Start Simulation</button>
+  <button onclick="location.reload()">Play Again</button>
+
+  <div id="result"></div>
   <canvas id="payoffChart"></canvas>
 
   <script>
@@ -44,8 +55,27 @@
     const premium = 5;
     const upperStrike = 110;
     const lowerStrike = 90;
+    const startingPrice = 100;
+    const steps = 10;
 
     let chart;
+
+    function getRandomMovement() {
+      return (Math.random() - 0.5) * 4; // random float between -2 and +2
+    }
+
+    function simulateStockPath(startPrice) {
+      let price = startPrice;
+      const path = [price];
+
+      for (let i = 0; i < steps; i++) {
+        price += getRandomMovement();
+        price = Math.max(50, Math.min(price, 150)); // clamp to range
+        path.push(Number(price.toFixed(2)));
+      }
+
+      return path;
+    }
 
     function payoff(stockPrice, strategy) {
       switch (strategy) {
@@ -62,20 +92,22 @@
       }
     }
 
-    function simulate() {
+    function startSimulation() {
       const strategy = document.getElementById("strategy").value;
-      const prices = [];
-      const profits = [];
+      const stockPath = simulateStockPath(startingPrice);
+      const finalPrice = stockPath[stockPath.length - 1];
+      const profit = payoff(finalPrice, strategy);
 
-      for (let price = 80; price <= 120; price += 1) {
-        prices.push(price);
-        profits.push(payoff(price, strategy));
-      }
+      document.getElementById("result").innerHTML = `
+        📊 Final Stock Price: <strong>$${finalPrice.toFixed(2)}</strong><br>
+        🧠 Strategy Used: <strong>${strategy.toUpperCase()}</strong><br>
+        💵 Profit/Loss: <strong style="color:${profit >= 0 ? 'green' : 'red'};">$${profit.toFixed(2)}</strong>
+      `;
 
-      renderChart(prices, profits, strategy);
+      renderChart(stockPath, strategy);
     }
 
-    function renderChart(x, y, strategy) {
+    function renderChart(prices, strategy) {
       const ctx = document.getElementById('payoffChart').getContext('2d');
 
       if (chart) {
@@ -85,13 +117,12 @@
       chart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: x,
+          labels: Array.from({ length: prices.length }, (_, i) => `T${i}`),
           datasets: [{
-            label: `Payoff: ${strategy}`,
-            data: y,
+            label: 'Stock Price',
+            data: prices,
             borderColor: '#007bff',
-            backgroundColor: 'rgba(0, 123, 255, 0.1)',
-            fill: true,
+            fill: false,
             tension: 0.2
           }]
         },
@@ -100,22 +131,21 @@
           plugins: {
             title: {
               display: true,
-              text: 'Profit / Payoff vs. Stock Price'
+              text: `Stock Price Movement (${strategy.toUpperCase()})`
             }
           },
           scales: {
             x: {
               title: {
                 display: true,
-                text: 'Stock Price at Expiration'
+                text: 'Time Step'
               }
             },
             y: {
               title: {
                 display: true,
-                text: 'Profit ($)'
-              },
-              beginAtZero: false
+                text: 'Stock Price ($)'
+              }
             }
           }
         }
@@ -124,3 +154,4 @@
   </script>
 </body>
 </html>
+
