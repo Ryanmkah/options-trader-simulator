@@ -70,7 +70,7 @@ Persistence: Browser localStorage
 
 Clone the repository:
 
-git clone https://github.com/your-username/options-trader-simulator.git
+git clone (https://ryanmkah.github.io/options-trader-simulator/)
 cd options-trader-simulator
 
 
