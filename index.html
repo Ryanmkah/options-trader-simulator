@@ -38,12 +38,15 @@
 
   <!-- User Settings -->
   <label for="strategy">Strategy:</label>
-  <select id="strategy">
-    <option value="call">Buy Call</option>
-    <option value="put">Buy Put</option>
-    <option value="straddle">Straddle</option>
-    <option value="collar">Collar</option>
-  </select><br>
+  <select id="strategy" onchange="updateStrategyExplanation()">
+  <option value="call">Buy Call</option>
+  <option value="put">Buy Put</option>
+  <option value="straddle">Straddle</option>
+  <option value="collar">Collar</option>
+</select><br>
+
+<div id="strategyInfo" style="max-width: 600px; margin: 0 auto; background: #fff; padding: 15px; border-radius: 8px; font-size: 15px; box-shadow: 0 0 10px rgba(0,0,0,0.1); text-align: left;"></div>
+
 
   <label for="startPrice">Starting Price: $</label>
   <input type="number" id="startPrice" value="100" step="1" min="10" max="500"><br>
@@ -66,6 +69,42 @@
   <canvas id="payoffChart"></canvas>
 
   <script>
+
+    const strategyDescriptions = {
+      call: `
+        <strong>📘 Buy Call:</strong><br>
+        - Gives you the right to buy at a fixed price.<br>
+        - Best if you expect the stock to go up.<br>
+        - Loss is limited to the premium paid; upside is unlimited.
+      `,
+      put: `
+      <strong>📘 Buy Put:</strong><br>
+      - Gives you the right to sell at a fixed price.<br>
+      - Great during bearish markets.<br>
+      - Profit rises as stock price falls, limited downside.
+    `,
+      straddle: `
+        <strong>📘 Straddle:</strong><br>
+        - Buy both a call and a put at the same strike.<br>
+        - Best when you expect a big move, but not sure which direction.<br>
+        - Risk: Expensive (2 premiums) and loses if the stock stays flat.
+      `,
+      collar: `
+        <strong>📘 Collar:</strong><br>
+        - Buy a put and sell a call (protective hedge).<br>
+        - Used to cap losses and gains.<br>
+        - Good for preserving capital with limited upside/downside.
+      `
+    };
+
+  function updateStrategyExplanation() {
+    const strategy = document.getElementById("strategy").value;
+    document.getElementById("strategyInfo").innerHTML = strategyDescriptions[strategy];
+  }
+
+// Show initial explanation on page load
+  window.onload = updateStrategyExplanation;
+
     const strikePrice = 100;
     const premium = 5;
     const upperStrike = 110;
