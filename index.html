@@ -194,22 +194,22 @@
 
     function renderChart(ctxId, label, data, color, yLabel) {
       const ctx = document.getElementById(ctxId).getContext('2d');
+
+  // Destroy previous chart for this canvas, if it exists
       if (ctxId === 'portfolioChart' && portfolioChartInstance) portfolioChartInstance.destroy();
       if (ctxId === 'payoffChart' && stockChartInstance) stockChartInstance.destroy();
 
-      
+  // Create the new chart
       const newChart = new Chart(ctx, {
-
-
         type: 'line',
         data: {
           labels: Array.from({ length: data.length }, (_, i) => i),
           datasets: [{
-            label: label,
-            data: data,
-            borderColor: color,
-            fill: false,
-            tension: 0.2
+          label: label,
+          data: data,
+          borderColor: color,
+          fill: false,
+          tension: 0.2
           }]
         },
         options: {
@@ -221,11 +221,12 @@
           }
         }
       });
-    }
-    
-      if (ctxId === 'portfolioChart') portfolioChartInstance = newChart;
-      if (ctxId === 'payoffChart') stockChartInstance = newChart;
+
+  // Store the instance so future renders can destroy it cleanly
+    if (ctxId === 'portfolioChart') portfolioChartInstance = newChart;
+    if (ctxId === 'payoffChart') stockChartInstance = newChart;
 }
+
 
     function updatePortfolioChart() {
       renderChart('portfolioChart', 'Portfolio Growth', tradeHistory, '#28a745', 'Portfolio Value ($)');
