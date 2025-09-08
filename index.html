@@ -16,13 +16,13 @@
       color: #333;
     }
 
-    select, button {
+    select, button, input {
       font-size: 16px;
       padding: 8px 12px;
       margin: 10px;
     }
 
-    #result {
+    #result, #news {
       margin-top: 20px;
       font-size: 18px;
     }
@@ -36,7 +36,8 @@
 <body>
   <h1>📈 Options Trader Simulator</h1>
 
-  <label for="strategy">Choose a Strategy:</label>
+  <!-- User Settings -->
+  <label for="strategy">Strategy:</label>
   <select id="strategy">
     <option value="call">Buy Call</option>
     <option value="put">Buy Put</option>
@@ -44,9 +45,23 @@
     <option value="collar">Collar</option>
   </select><br>
 
+  <label for="startPrice">Starting Price: $</label>
+  <input type="number" id="startPrice" value="100" step="1" min="10" max="500"><br>
+
+  <label for="volatility">Volatility:</label>
+  <select id="volatility">
+    <option value="low">Low</option>
+    <option value="medium" selected>Medium</option>
+    <option value="high">High</option>
+  </select><br>
+
+  <label for="steps">Time Steps:</label>
+  <input type="number" id="steps" value="10" min="5" max="50"><br>
+
   <button onclick="startSimulation()">Start Simulation</button>
   <button onclick="location.reload()">Play Again</button>
 
+  <div id="news"></div>
   <div id="result"></div>
   <canvas id="payoffChart"></canvas>
 
@@ -55,26 +70,56 @@
     const premium = 5;
     const upperStrike = 110;
     const lowerStrike = 90;
-    const startingPrice = 100;
-    const steps = 10;
+
+    const newsEvents = [
+      { text: "📰 Fed announces rate hike", effect: -3 },
+      { text: "📰 Strong earnings report", effect: 4 },
+      { text: "📰 Inflation worse than expected", effect: -4 },
+      { text: "📰 AI company beats expectations", effect: 3 },
+      { text: "📰 Market uncertainty rises", effect: -2 },
+      { text: "📰 GDP growth revised upward", effect: 2 },
+      { text: "📰 Unemployment drops unexpectedly", effect: 3 },
+      { text: "📰 Geopolitical tensions increase", effect: -3 }
+    ];
 
     let chart;
 
-    function getRandomMovement() {
-      return (Math.random() - 0.5) * 4; // random float between -2 and +2
+    function getVolatilityRange(level) {
+      switch (level) {
+        case 'low': return 1.0;
+        case 'medium': return 2.5;
+        case 'high': return 5.0;
+        default: return 2.5;
+      }
     }
 
-    function simulateStockPath(startPrice) {
+    function getRandomMovement(volatility) {
+      return (Math.random() - 0.5) * 2 * volatility;
+    }
+
+    function simulateStockPath(startPrice, steps, volatility) {
       let price = startPrice;
       const path = [price];
+      const headlines = [];
 
       for (let i = 0; i < steps; i++) {
-        price += getRandomMovement();
-        price = Math.max(50, Math.min(price, 150)); // clamp to range
+        let movement = getRandomMovement(volatility);
+
+        // 30% chance of news event
+        if (Math.random() < 0.3) {
+          const news = newsEvents[Math.floor(Math.random() * newsEvents.length)];
+          movement += news.effect;
+          headlines.push(`T${i + 1}: ${news.text}`);
+        } else {
+          headlines.push(`T${i + 1}: No major news.`);
+        }
+
+        price += movement;
+        price = Math.max(10, Math.min(price, 500));
         path.push(Number(price.toFixed(2)));
       }
 
-      return path;
+      return { path, headlines };
     }
 
     function payoff(stockPrice, strategy) {
@@ -94,10 +139,20 @@
 
     function startSimulation() {
       const strategy = document.getElementById("strategy").value;
-      const stockPath = simulateStockPath(startingPrice);
+      const startPrice = parseFloat(document.getElementById("startPrice").value);
+      const steps = parseInt(document.getElementById("steps").value);
+      const volatilityLevel = document.getElementById("volatility").value;
+      const volatility = getVolatilityRange(volatilityLevel);
+
+      const { path: stockPath, headlines } = simulateStockPath(startPrice, steps, volatility);
       const finalPrice = stockPath[stockPath.length - 1];
       const profit = payoff(finalPrice, strategy);
 
+      // Show news headlines
+      document.getElementById("news").innerHTML = `<h3>📰 Market Headlines</h3><ul style="text-align: left; max-width: 600px; margin: 0 auto;">` +
+        headlines.map(h => `<li>${h}</li>`).join('') + `</ul>`;
+
+      // Show results
       document.getElementById("result").innerHTML = `
         📊 Final Stock Price: <strong>$${finalPrice.toFixed(2)}</strong><br>
         🧠 Strategy Used: <strong>${strategy.toUpperCase()}</strong><br>
@@ -109,10 +164,7 @@
 
     function renderChart(prices, strategy) {
       const ctx = document.getElementById('payoffChart').getContext('2d');
-
-      if (chart) {
-        chart.destroy();
-      }
+      if (chart) chart.destroy();
 
       chart = new Chart(ctx, {
         type: 'line',
@@ -135,18 +187,8 @@
             }
           },
           scales: {
-            x: {
-              title: {
-                display: true,
-                text: 'Time Step'
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: 'Stock Price ($)'
-              }
-            }
+            x: { title: { display: true, text: 'Time Step' } },
+            y: { title: { display: true, text: 'Stock Price ($)' } }
           }
         }
       });
@@ -154,4 +196,3 @@
   </script>
 </body>
 </html>
-
