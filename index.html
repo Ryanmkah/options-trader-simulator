@@ -194,9 +194,13 @@
 
     function renderChart(ctxId, label, data, color, yLabel) {
       const ctx = document.getElementById(ctxId).getContext('2d');
-      if (window[ctxId]) window[ctxId].destroy();
+      if (ctxId === 'portfolioChart' && portfolioChartInstance) portfolioChartInstance.destroy();
+      if (ctxId === 'payoffChart' && stockChartInstance) stockChartInstance.destroy();
 
-      window[ctxId] = new Chart(ctx, {
+      
+      const newChart = new Chart(ctx, {
+
+
         type: 'line',
         data: {
           labels: Array.from({ length: data.length }, (_, i) => i),
@@ -218,6 +222,10 @@
         }
       });
     }
+    
+      if (ctxId === 'portfolioChart') portfolioChartInstance = newChart;
+      if (ctxId === 'payoffChart') stockChartInstance = newChart;
+}
 
     function updatePortfolioChart() {
       renderChart('portfolioChart', 'Portfolio Growth', tradeHistory, '#28a745', 'Portfolio Value ($)');
@@ -250,6 +258,9 @@
     }
 
     // Init everything
+    let portfolioChartInstance;
+    let stockChartInstance;
+
     window.onload = function () {
       updateStrategyExplanation();
       initializePortfolio();
