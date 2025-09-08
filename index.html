@@ -31,23 +31,37 @@
       margin-top: 30px;
       max-width: 800px;
     }
+
+    #strategyInfo {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: left;
+    }
   </style>
 </head>
 <body>
   <h1>📈 Options Trader Simulator</h1>
 
-  <!-- User Settings -->
+  <!-- Strategy Selector -->
   <label for="strategy">Strategy:</label>
   <select id="strategy" onchange="updateStrategyExplanation()">
-  <option value="call">Buy Call</option>
-  <option value="put">Buy Put</option>
-  <option value="straddle">Straddle</option>
-  <option value="collar">Collar</option>
-</select><br>
+    <option value="call">Buy Call</option>
+    <option value="put">Buy Put</option>
+    <option value="straddle">Straddle</option>
+    <option value="collar">Collar</option>
+    <option value="sell_call">Sell Call</option>
+    <option value="sell_put">Sell Put</option>
+  </select><br>
 
-<div id="strategyInfo" style="max-width: 600px; margin: 0 auto; background: #fff; padding: 15px; border-radius: 8px; font-size: 15px; box-shadow: 0 0 10px rgba(0,0,0,0.1); text-align: left;"></div>
+  <!-- Explanation Panel -->
+  <div id="strategyInfo"></div>
 
-
+  <!-- User Controls -->
   <label for="startPrice">Starting Price: $</label>
   <input type="number" id="startPrice" value="100" step="1" min="10" max="500"><br>
 
@@ -64,47 +78,12 @@
   <button onclick="startSimulation()">Start Simulation</button>
   <button onclick="location.reload()">Play Again</button>
 
+  <!-- Output Areas -->
   <div id="news"></div>
   <div id="result"></div>
   <canvas id="payoffChart"></canvas>
 
   <script>
-
-    const strategyDescriptions = {
-      call: `
-        <strong>📘 Buy Call:</strong><br>
-        - Gives you the right to buy at a fixed price.<br>
-        - Best if you expect the stock to go up.<br>
-        - Loss is limited to the premium paid; upside is unlimited.
-      `,
-      put: `
-      <strong>📘 Buy Put:</strong><br>
-      - Gives you the right to sell at a fixed price.<br>
-      - Great during bearish markets.<br>
-      - Profit rises as stock price falls, limited downside.
-    `,
-      straddle: `
-        <strong>📘 Straddle:</strong><br>
-        - Buy both a call and a put at the same strike.<br>
-        - Best when you expect a big move, but not sure which direction.<br>
-        - Risk: Expensive (2 premiums) and loses if the stock stays flat.
-      `,
-      collar: `
-        <strong>📘 Collar:</strong><br>
-        - Buy a put and sell a call (protective hedge).<br>
-        - Used to cap losses and gains.<br>
-        - Good for preserving capital with limited upside/downside.
-      `
-    };
-
-  function updateStrategyExplanation() {
-    const strategy = document.getElementById("strategy").value;
-    document.getElementById("strategyInfo").innerHTML = strategyDescriptions[strategy];
-  }
-
-// Show initial explanation on page load
-  window.onload = updateStrategyExplanation;
-
     const strikePrice = 100;
     const premium = 5;
     const upperStrike = 110;
@@ -121,7 +100,51 @@
       { text: "📰 Geopolitical tensions increase", effect: -3 }
     ];
 
-    let chart;
+    const strategyDescriptions = {
+      call: `
+        <strong>📘 Buy Call:</strong><br>
+        - Right to buy at strike.<br>
+        - Profit if stock rises.<br>
+        - Limited downside, unlimited upside.
+      `,
+      put: `
+        <strong>📘 Buy Put:</strong><br>
+        - Right to sell at strike.<br>
+        - Profit if stock falls.<br>
+        - Limited loss, big gains in bearish markets.
+      `,
+      straddle: `
+        <strong>📘 Straddle:</strong><br>
+        - Buy call + put at same strike.<br>
+        - Wins if stock moves big, up or down.<br>
+        - Loses if stock stays flat.
+      `,
+      collar: `
+        <strong>📘 Collar:</strong><br>
+        - Buy put + sell call.<br>
+        - Caps gains and losses.<br>
+        - Used to hedge when holding stock.
+      `,
+      sell_call: `
+        <strong>📘 Sell Call:</strong><br>
+        - You must sell if stock rises.<br>
+        - Best if stock stays flat or falls.<br>
+        - Limited gain (premium), unlimited risk if stock surges.
+      `,
+      sell_put: `
+        <strong>📘 Sell Put:</strong><br>
+        - You must buy if stock drops.<br>
+        - Used to earn premium or buy discounted.<br>
+        - High risk if stock crashes far below strike.
+      `
+    };
+
+    function updateStrategyExplanation() {
+      const strategy = document.getElementById("strategy").value;
+      document.getElementById("strategyInfo").innerHTML = strategyDescriptions[strategy];
+    }
+
+    window.onload = updateStrategyExplanation;
 
     function getVolatilityRange(level) {
       switch (level) {
@@ -143,8 +166,6 @@
 
       for (let i = 0; i < steps; i++) {
         let movement = getRandomMovement(volatility);
-
-        // 30% chance of news event
         if (Math.random() < 0.3) {
           const news = newsEvents[Math.floor(Math.random() * newsEvents.length)];
           movement += news.effect;
@@ -171,10 +192,16 @@
           return Math.max(stockPrice - strikePrice, 0) + Math.max(strikePrice - stockPrice, 0) - 2 * premium;
         case "collar":
           return Math.min(Math.max(stockPrice - lowerStrike, 0), upperStrike - lowerStrike) - premium;
+        case "sell_call":
+          return -(Math.max(stockPrice - strikePrice, 0)) + premium;
+        case "sell_put":
+          return -(Math.max(strikePrice - stockPrice, 0)) + premium;
         default:
           return 0;
       }
     }
+
+    let chart;
 
     function startSimulation() {
       const strategy = document.getElementById("strategy").value;
@@ -187,14 +214,12 @@
       const finalPrice = stockPath[stockPath.length - 1];
       const profit = payoff(finalPrice, strategy);
 
-      // Show news headlines
       document.getElementById("news").innerHTML = `<h3>📰 Market Headlines</h3><ul style="text-align: left; max-width: 600px; margin: 0 auto;">` +
         headlines.map(h => `<li>${h}</li>`).join('') + `</ul>`;
 
-      // Show results
       document.getElementById("result").innerHTML = `
         📊 Final Stock Price: <strong>$${finalPrice.toFixed(2)}</strong><br>
-        🧠 Strategy Used: <strong>${strategy.toUpperCase()}</strong><br>
+        🧠 Strategy Used: <strong>${strategy.replace("_", " ").toUpperCase()}</strong><br>
         💵 Profit/Loss: <strong style="color:${profit >= 0 ? 'green' : 'red'};">$${profit.toFixed(2)}</strong>
       `;
 
@@ -222,7 +247,7 @@
           plugins: {
             title: {
               display: true,
-              text: `Stock Price Movement (${strategy.toUpperCase()})`
+              text: `Stock Price Movement (${strategy.replace("_", " ").toUpperCase()})`
             }
           },
           scales: {
