@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Options Trader Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      color: #333;
+    }
+    select, button {
+      font-size: 16px;
+      padding: 8px 12px;
+      margin: 10px;
+    }
+    canvas {
+      margin-top: 30px;
+      max-width: 800px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📈 Options Trader Simulator</h1>
+  <label for="strategy">Choose an Option Strategy:</label>
+  <select id="strategy">
+    <option value="call">Buy Call</option>
+    <option value="put">Buy Put</option>
+    <option value="straddle">Straddle</option>
+    <option value="collar">Collar</option>
+  </select>
+  <br>
+  <button onclick="simulate()">Simulate Trade</button>
+
+  <canvas id="payoffChart"></canvas>
+
+  <script>
+    const strikePrice = 100;
+    const premium = 5;
+    const upperStrike = 110;
+    const lowerStrike = 90;
+
+    let chart;
+
+    function payoff(stockPrice, strategy) {
+      switch (strategy) {
+        case "call":
+          return Math.max(stockPrice - strikePrice, 0) - premium;
+        case "put":
+          return Math.max(strikePrice - stockPrice, 0) - premium;
+        case "straddle":
+          return Math.max(stockPrice - strikePrice, 0) + Math.max(strikePrice - stockPrice, 0) - 2 * premium;
+        case "collar":
+          return Math.min(Math.max(stockPrice - lowerStrike, 0), upperStrike - lowerStrike) - premium;
+        default:
+          return 0;
+      }
+    }
+
+    function simulate() {
+      const strategy = document.getElementById("strategy").value;
+      const prices = [];
+      const profits = [];
+
+      for (let price = 80; price <= 120; price += 1) {
+        prices.push(price);
+        profits.push(payoff(price, strategy));
+      }
+
+      renderChart(prices, profits, strategy);
+    }
+
+    function renderChart(x, y, strategy) {
+      const ctx = document.getElementById('payoffChart').getContext('2d');
+
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: x,
+          datasets: [{
+            label: `Payoff: ${strategy}`,
+            data: y,
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            fill: true,
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Profit / Payoff vs. Stock Price'
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Stock Price at Expiration'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Profit ($)'
+              },
+              beginAtZero: false
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
