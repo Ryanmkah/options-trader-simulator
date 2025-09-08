@@ -22,7 +22,7 @@
       margin: 10px;
     }
 
-    #result, #news {
+    #result, #news, #portfolio {
       margin-top: 20px;
       font-size: 18px;
     }
@@ -58,10 +58,9 @@
     <option value="sell_put">Sell Put</option>
   </select><br>
 
-  <!-- Explanation Panel -->
   <div id="strategyInfo"></div>
 
-  <!-- User Controls -->
+  <!-- Game Inputs -->
   <label for="startPrice">Starting Price: $</label>
   <input type="number" id="startPrice" value="100" step="1" min="10" max="500"><br>
 
@@ -76,9 +75,11 @@
   <input type="number" id="steps" value="10" min="5" max="50"><br>
 
   <button onclick="startSimulation()">Start Simulation</button>
-  <button onclick="location.reload()">Play Again</button>
+  <button onclick="resetPortfolio()" style="background: #c00; color: white;">Reset Portfolio</button>
 
-  <!-- Output Areas -->
+  <!-- Output Sections -->
+  <div id="portfolio"></div>
+  <canvas id="portfolioChart"></canvas>
   <div id="news"></div>
   <div id="result"></div>
   <canvas id="payoffChart"></canvas>
@@ -88,6 +89,8 @@
     const premium = 5;
     const upperStrike = 110;
     const lowerStrike = 90;
+    let portfolioBalance = 0;
+    let tradeHistory = [];
 
     const newsEvents = [
       { text: "📰 Fed announces rate hike", effect: -3 },
@@ -101,42 +104,12 @@
     ];
 
     const strategyDescriptions = {
-      call: `
-        <strong>📘 Buy Call:</strong><br>
-        - Right to buy at strike.<br>
-        - Profit if stock rises.<br>
-        - Limited downside, unlimited upside.
-      `,
-      put: `
-        <strong>📘 Buy Put:</strong><br>
-        - Right to sell at strike.<br>
-        - Profit if stock falls.<br>
-        - Limited loss, big gains in bearish markets.
-      `,
-      straddle: `
-        <strong>📘 Straddle:</strong><br>
-        - Buy call + put at same strike.<br>
-        - Wins if stock moves big, up or down.<br>
-        - Loses if stock stays flat.
-      `,
-      collar: `
-        <strong>📘 Collar:</strong><br>
-        - Buy put + sell call.<br>
-        - Caps gains and losses.<br>
-        - Used to hedge when holding stock.
-      `,
-      sell_call: `
-        <strong>📘 Sell Call:</strong><br>
-        - You must sell if stock rises.<br>
-        - Best if stock stays flat or falls.<br>
-        - Limited gain (premium), unlimited risk if stock surges.
-      `,
-      sell_put: `
-        <strong>📘 Sell Put:</strong><br>
-        - You must buy if stock drops.<br>
-        - Used to earn premium or buy discounted.<br>
-        - High risk if stock crashes far below strike.
-      `
+      call: `<strong>📘 Buy Call:</strong><br>- Right to buy at strike.<br>- Profit if stock rises.<br>- Limited downside, unlimited upside.`,
+      put: `<strong>📘 Buy Put:</strong><br>- Right to sell at strike.<br>- Profit if stock falls.<br>- Limited loss, big gains in bearish markets.`,
+      straddle: `<strong>📘 Straddle:</strong><br>- Buy call + put at same strike.<br>- Wins if stock moves big, up or down.<br>- Loses if stock stays flat.`,
+      collar: `<strong>📘 Collar:</strong><br>- Buy put + sell call.<br>- Caps gains and losses.<br>- Used to hedge when holding stock.`,
+      sell_call: `<strong>📘 Sell Call:</strong><br>- Must sell if stock rises.<br>- Best if stock stays flat or falls.<br>- Limited gain (premium), unlimited risk if stock surges.`,
+      sell_put: `<strong>📘 Sell Put:</strong><br>- Must buy if stock drops.<br>- Used to earn premium or buy discounted.<br>- High risk if stock crashes.`
     };
 
     function updateStrategyExplanation() {
@@ -144,15 +117,8 @@
       document.getElementById("strategyInfo").innerHTML = strategyDescriptions[strategy];
     }
 
-    window.onload = updateStrategyExplanation;
-
     function getVolatilityRange(level) {
-      switch (level) {
-        case 'low': return 1.0;
-        case 'medium': return 2.5;
-        case 'high': return 5.0;
-        default: return 2.5;
-      }
+      return { low: 1.0, medium: 2.5, high: 5.0 }[level] || 2.5;
     }
 
     function getRandomMovement(volatility) {
@@ -184,32 +150,88 @@
 
     function payoff(stockPrice, strategy) {
       switch (strategy) {
-        case "call":
-          return Math.max(stockPrice - strikePrice, 0) - premium;
-        case "put":
-          return Math.max(strikePrice - stockPrice, 0) - premium;
-        case "straddle":
-          return Math.max(stockPrice - strikePrice, 0) + Math.max(strikePrice - stockPrice, 0) - 2 * premium;
-        case "collar":
-          return Math.min(Math.max(stockPrice - lowerStrike, 0), upperStrike - lowerStrike) - premium;
-        case "sell_call":
-          return -(Math.max(stockPrice - strikePrice, 0)) + premium;
-        case "sell_put":
-          return -(Math.max(strikePrice - stockPrice, 0)) + premium;
-        default:
-          return 0;
+        case "call": return Math.max(stockPrice - strikePrice, 0) - premium;
+        case "put": return Math.max(strikePrice - stockPrice, 0) - premium;
+        case "straddle": return Math.max(stockPrice - strikePrice, 0) + Math.max(strikePrice - stockPrice, 0) - 2 * premium;
+        case "collar": return Math.min(Math.max(stockPrice - lowerStrike, 0), upperStrike - lowerStrike) - premium;
+        case "sell_call": return -(Math.max(stockPrice - strikePrice, 0)) + premium;
+        case "sell_put": return -(Math.max(strikePrice - stockPrice, 0)) + premium;
+        default: return 0;
       }
     }
 
-    let chart;
+    function initializePortfolio() {
+      const stored = localStorage.getItem('portfolioBalance');
+      const history = localStorage.getItem('portfolioHistory');
+      portfolioBalance = stored ? parseFloat(stored) : 10000;
+      tradeHistory = history ? JSON.parse(history) : [portfolioBalance];
+      updatePortfolioDisplay();
+      updatePortfolioChart();
+    }
+
+    function updatePortfolioDisplay() {
+      document.getElementById("portfolio").innerHTML = `💼 Portfolio Value: <strong>$${portfolioBalance.toFixed(2)}</strong>`;
+    }
+
+    function applyTradeResult(profit) {
+      portfolioBalance += profit;
+      portfolioBalance = Math.max(0, portfolioBalance);
+      tradeHistory.push(portfolioBalance);
+      localStorage.setItem('portfolioBalance', portfolioBalance);
+      localStorage.setItem('portfolioHistory', JSON.stringify(tradeHistory));
+      updatePortfolioDisplay();
+      updatePortfolioChart();
+    }
+
+    function resetPortfolio() {
+      portfolioBalance = 10000;
+      tradeHistory = [10000];
+      localStorage.setItem('portfolioBalance', portfolioBalance);
+      localStorage.setItem('portfolioHistory', JSON.stringify(tradeHistory));
+      updatePortfolioDisplay();
+      updatePortfolioChart();
+    }
+
+    function renderChart(ctxId, label, data, color, yLabel) {
+      const ctx = document.getElementById(ctxId).getContext('2d');
+      if (window[ctxId]) window[ctxId].destroy();
+
+      window[ctxId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array.from({ length: data.length }, (_, i) => i),
+          datasets: [{
+            label: label,
+            data: data,
+            borderColor: color,
+            fill: false,
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { title: { display: true, text: label } },
+          scales: {
+            x: { title: { display: true, text: 'Time Step' } },
+            y: { title: { display: true, text: yLabel } }
+          }
+        }
+      });
+    }
+
+    function updatePortfolioChart() {
+      renderChart('portfolioChart', 'Portfolio Growth', tradeHistory, '#28a745', 'Portfolio Value ($)');
+    }
+
+    function renderStockChart(prices, strategy) {
+      renderChart('payoffChart', `Stock Price Movement (${strategy.toUpperCase()})`, prices, '#007bff', 'Stock Price ($)');
+    }
 
     function startSimulation() {
       const strategy = document.getElementById("strategy").value;
       const startPrice = parseFloat(document.getElementById("startPrice").value);
       const steps = parseInt(document.getElementById("steps").value);
-      const volatilityLevel = document.getElementById("volatility").value;
-      const volatility = getVolatilityRange(volatilityLevel);
-
+      const volatility = getVolatilityRange(document.getElementById("volatility").value);
       const { path: stockPath, headlines } = simulateStockPath(startPrice, steps, volatility);
       const finalPrice = stockPath[stockPath.length - 1];
       const profit = payoff(finalPrice, strategy);
@@ -223,40 +245,15 @@
         💵 Profit/Loss: <strong style="color:${profit >= 0 ? 'green' : 'red'};">$${profit.toFixed(2)}</strong>
       `;
 
-      renderChart(stockPath, strategy);
+      renderStockChart(stockPath, strategy);
+      applyTradeResult(profit);
     }
 
-    function renderChart(prices, strategy) {
-      const ctx = document.getElementById('payoffChart').getContext('2d');
-      if (chart) chart.destroy();
-
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: Array.from({ length: prices.length }, (_, i) => `T${i}`),
-          datasets: [{
-            label: 'Stock Price',
-            data: prices,
-            borderColor: '#007bff',
-            fill: false,
-            tension: 0.2
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: `Stock Price Movement (${strategy.replace("_", " ").toUpperCase()})`
-            }
-          },
-          scales: {
-            x: { title: { display: true, text: 'Time Step' } },
-            y: { title: { display: true, text: 'Stock Price ($)' } }
-          }
-        }
-      });
-    }
+    // Init everything
+    window.onload = function () {
+      updateStrategyExplanation();
+      initializePortfolio();
+    };
   </script>
 </body>
 </html>
