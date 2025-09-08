@@ -92,10 +92,6 @@ Build intuition for risk/reward dynamics
 
 This accelerates learning, sparks curiosity, and makes complex financial concepts approachable.
 
-📸 Screenshots
-
-(You can add images here once you take them — e.g. stock chart, portfolio growth, strategy dropdown)
-
 🙏 Acknowledgments
 
 Special thanks to Professor Michael Cheah at Fordham for encouraging us to think critically about how technology and finance intersect.
